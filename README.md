@@ -2,6 +2,10 @@
 
 [Visit the Application](https://theivsurface.streamlit.app/)
 
+[Full Report PDF](./docs/Implied%20Volatility%20Surface%20Report.pdf)
+
+---
+
 **Author**: Micah Yihun Aldrich  
 **University**: University of Illinois Urbana-Champaign
 
@@ -79,12 +83,5 @@ Future iterations will explore:
 - **Arbitrage Strategies**: Using the IV surface to identify trading opportunities.
 - **Snapshots**: Capture the IV surface at regular intervals and store them in a database for historical analysis.
 - **Replay Feature**: Allow users to replay historical IV surfaces to observe how volatility evolves over time.
-
----
-
-## Full Project Report
-
-[Implied Volatility Surface Report](./docs/Implied%20Volatility%20Surface%20Report.pdf)
-
 
 ---
