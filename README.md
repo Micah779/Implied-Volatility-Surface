@@ -1,4 +1,4 @@
-# Implied Volatility Surface Generator using Black-Scholes Model and Brent’s Method
+# Implied Volatility Surface Generator | QuantLib, Black-Scholes Model, Brent’s Method
 
 [Visit the Application](https://theivsurface.streamlit.app/)
 
