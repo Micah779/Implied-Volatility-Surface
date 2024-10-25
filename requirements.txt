@@ -4,3 +4,4 @@ plotly
 scipy
 yfinance
 pandas
+quantlib
