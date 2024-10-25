@@ -1,27 +1,71 @@
-import streamlit as st
 import numpy as np
-import plotly.graph_objects as go
+import pandas as pd
+from datetime import timedelta
+import yfinance as yf
+import streamlit as st
 from scipy.stats import norm
 from scipy.optimize import brentq
 from scipy.interpolate import griddata
-import yfinance as yf
-import pandas as pd
-from datetime import timedelta
+import plotly.graph_objects as go
+import QuantLib as ql
 
-# black scholes for option price calc
-def black_scholes_price(S, K, T, r, sigma, q=0):
-    d1 = (np.log(S/K) + (r - q + 0.5 * sigma**2) * T) / (sigma * np.sqrt(T))
-    d2 = d1 - sigma * np.sqrt(T)
-    price = S * np.exp(-q * T) * norm.cdf(d1) - K * np.exp(-r * T) * norm.cdf(d2)
+def ql_black_scholes(option_type, calculation_date, expiration_date, spot_price, strike_price, volatility, interest_rate, dividend_rate):
+    day_count = ql.Actual365Fixed()
+    calendar = ql.UnitedStates(ql.UnitedStates.NYSE)
 
-    return price
+    option_type = ql.Option.Call if option_type == 'call' else ql.Option.Put
+
+    maturity_date = ql.DateParser.parseISO(expiration_date)
+    calculation_date = ql.DateParser.parseISO(calculation_date)
+
+    payoff = ql.PlainVanillaPayoff(option_type, strike_price)
+
+    spot_handler = ql.QuoteHandle(
+        ql.SimpleQuote(spot_price)
+    )
+
+    rf_rate_ts = ql.YieldTermStructureHandle(
+        ql.FlatForward(calculation_date, interest_rate, day_count)
+    )
+
+
+    div_ts = ql.YieldTermStructureHandle(
+        ql.FlatForward(calculation_date, dividend_rate, day_count)
+    )
+
+
+    vol_ts = ql.BlackVolTermStructureHandle(
+        ql.BlackConstantVol(calculation_date, calendar, volatility, day_count)
+    )
+
+    bsm_process = ql.BlackScholesMertonProcess(spot_handler, div_ts, rf_rate_ts, vol_ts)
+
+    eu_exercise = ql.EuropeanExercise(maturity_date)
+    european_option = ql.VanillaOption(payoff, eu_exercise)
+
+    european_option.setPricingEngine(ql.AnalyticEuropeanEngine(bsm_process))
+
+    bs_price = european_option.NPV()
+
+    return bs_price
+    pass
 
 # actual iv calc
-def calculate_iv(market_price, S, K, T, r, q=0):
-    if T <= 0 or market_price <= 0:
+def calculate_iv(market_price, spot_price, strike_price, time_to_expiration, risk_free_rate, dividend_yield=0):
+    if time_to_expiration <= 0 or market_price <= 0:
         return np.nan
+
     def objective_function(sigma):
-        return black_scholes_price(S, K, T, r, sigma, q) - market_price
+        return ql_black_scholes(
+            'call',
+            pd.Timestamp('today').strftime('%Y-%m-%d'),
+            expiration_date=(pd.Timestamp('today') + timedelta(days=int(time_to_expiration * 365))).strftime('%Y-%m-%d'),
+            spot_price=spot_price,
+            strike_price=strike_price,
+            volatility=sigma,
+            interest_rate=risk_free_rate,
+            dividend_rate=dividend_yield
+        ) - market_price
 
     try:
         implied_volatility_objective = brentq(objective_function, 1e-6, 5)   
@@ -123,11 +167,11 @@ else:
         options_df['impliedVolatility'] = options_df.apply(
             lambda row: calculate_iv(
                 market_price=row['mid'],
-                S=spot_price,
-                K=row['strike'],
-                T=row['timeToExpiration'],
-                r=risk_free_rate,
-                q=dividend_yield
+                spot_price=spot_price,
+                strike_price=row['strike'],
+                time_to_expiration=row['timeToExpiration'],
+                risk_free_rate=risk_free_rate,
+                dividend_yield=dividend_yield
             ), axis=1
         )
 
